@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cadastro Rápido - Joias</title>
+  <style>
+    :root {
+      --bg: #f8f9fa;
+      --card: #ffffff;
+      --text: #1f2937;
+      --primary: #111827;
+      --accent: #2563eb;
+      --success: #16a34a;
+      --border: #e5e7eb;
+    }
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); padding: 14px; max-width: 520px; margin: 0 auto; }
+    h1 { font-size: 1.2rem; text-align: center; margin-bottom: 12px; font-weight: 700; }
+    .card { background: var(--card); padding: 14px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .setup-box { background: #eff6ff; border-color: #bfdbfe; font-size: 0.85rem; }
+    .setup-box a { color: var(--accent); font-weight: 600; }
+    label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 4px; color: #4b5563; }
+    .row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+    input, select, textarea { width: 100%; padding: 11px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; background: #fff; }
+    textarea { resize: vertical; min-height: 60px; }
+    button { cursor: pointer; border: none; border-radius: 8px; font-weight: 600; font-size: 0.95rem; padding: 12px; transition: 0.15s; }
+    .btn-mic { width: 46px; height: 44px; flex-shrink: 0; background: #f3f4f6; border: 1px solid var(--border); font-size: 1.2rem; display: flex; align-items: center; justify-content: center; }
+    .btn-mic.listening { background: #fee2e2; border-color: #ef4444; animation: pulse 1s infinite; }
+    @keyframes pulse { 50% { opacity: 0.5; } }
+    .btn-cam { width: 100%; background: var(--accent); color: #fff; padding: 14px; font-size: 1rem; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-add { width: 100%; background: var(--primary); color: #fff; padding: 14px; font-size: 1rem; margin-top: 4px; }
+    .btn-export { flex: 1; background: var(--success); color: #fff; }
+    .btn-copy { flex: 1; background: #374151; color: #fff; }
+    .btn-clear { background: #fee2e2; color: #b91c1c; padding: 8px 12px; font-size: 0.8rem; }
+    .status { font-size: 0.82rem; color: #4b5563; margin-bottom: 8px; word-break: break-all; }
+    .item-list { list-style: none; }
+    .item-list li { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    .item-list img { width: 38px; height: 38px; object-fit: cover; border-radius: 6px; margin-right: 8px; border: 1px solid var(--border); }
+    .item-info { display: flex; align-items: center; flex: 1; }
+    .del-btn { background: none; color: #ef4444; padding: 4px 8px; font-size: 1rem; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+  <h1>💎 Cadastro Rápido Nuvemshop</h1>
+
+  <!-- Configuração única da chave gratuita de imagem -->
+  <div id="apiBox" class="card setup-box">
+    <label>Configuração Única (Para gerar links .jpg sozinho):</label>
+    <p style="margin-bottom:8px;">Pegue sua chave grátis em <a href="https://api.imgbb.com/" target="_blank">api.imgbb.com</a> (clique em "Get API Key") e cole abaixo uma única vez:</p>
+    <div class="row" style="margin-bottom:0;">
+      <input type="text" id="apiKeyInput" placeholder="Cole sua chave ImgBB aqui...">
+      <button onclick="saveApiKey()" style="background:var(--accent);color:#fff;white-space:nowrap;">Salvar</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <!-- Câmera / Foto -->
+    <input type="file" id="cameraInput" accept="image/*" capture="environment" multiple class="hidden" onchange="handlePhotos(this.files)">
+    <button class="btn-cam" onclick="document.getElementById('cameraInput').click()">
+      📷 Tirar Foto da Joia (ou Galeria)
+    </button>
+    <div id="photoStatus" class="status">Nenhuma foto adicionada ainda.</div>
+    <input type="text" id="imageLinks" placeholder="Ou cole o link .jpg direto aqui" style="margin-bottom:10px; font-size:0.85rem;">
+
+    <!-- Nome -->
+    <label>Nome da Joia *</label>
+    <div class="row">
+      <input type="text" id="nome" placeholder="Ex: Anel Solitário Prata 925">
+      <button type="button" class="btn-mic" onclick="startVoice('nome', this)" title="Falar nome">🎤</button>
+    </div>
+
+    <!-- Preço e Estoque -->
+    <div class="row">
+      <div style="flex: 2;">
+        <label>Preço (R$) *</label>
+        <div class="row" style="margin-bottom:0;">
+          <input type="text" id="preco" inputmode="decimal" placeholder="Ex: 89.90">
+          <button type="button" class="btn-mic" onclick="startVoice('preco', this)" title="Falar preço">🎤</button>
+        </div>
+      </div>
+      <div style="flex: 1;">
+        <label>Estoque</label>
+        <input type="number" id="estoque" value="1" min="0">
+      </div>
+    </div>
+
+    <!-- Categoria -->
+    <label>Categoria</label>
+    <div class="row">
+      <input type="text" id="categoria" list="listaCategorias" placeholder="Ex: Anéis">
+      <datalist id="listaCategorias">
+        <option value="Anéis">
+        <option value="Brincos">
+        <option value="Colares">
+        <option value="Pulseiras">
+        <option value="Conjuntos">
+      </datalist>
+      <button type="button" class="btn-mic" onclick="startVoice('categoria', this)" title="Falar categoria">🎤</button>
+    </div>
+
+    <!-- Descrição Opcional -->
+    <label>Descrição (Opcional - preenche sozinho se vazio)</label>
+    <div class="row">
+      <textarea id="descricao" placeholder="Fale ou digite detalhes da peça..."></textarea>
+      <button type="button" class="btn-mic" onclick="startVoice('descricao', this)" title="Falar descrição">🎤</button>
+    </div>
+
+    <button class="btn-add" onclick="addProduct()">➕ Adicionar na Planilha do Dia</button>
+  </div>
+
+  <!-- Lista do Dia e Exportação -->
+  <div class="card">
+    <div class="row" style="justify-content: space-between;">
+      <strong>Peças na planilha (<span id="count">0</span>)</strong>
+      <button class="btn-clear" onclick="clearAll()">Limpar Tudo</button>
+    </div>
+    <ul id="productList" class="item-list"></ul>
+
+    <div class="row" style="margin-top: 12px; margin-bottom: 0;">
+      <button class="btn-export" onclick="downloadCSV()">⬇️ Baixar .CSV</button>
+      <button class="btn-copy" onclick="copyForSheets()">📋 Copiar p/ Sheets</button>
+    </div>
+    <div style="text-align:right; margin-top:6px;">
+      <a href="#" onclick="resetApiKey()" style="font-size:0.75rem; color:#6b7280;">Trocar chave ImgBB</a>
+    </div>
+  </div>
+
+<script>
+  let products = JSON.parse(localStorage.getItem('nuvem_joias') || '[]');
+  let apiKey = localStorage.getItem('imgbb_key') || '';
+
+  if (apiKey) document.getElementById('apiBox').classList.add('hidden');
+  renderList();
+
+  function saveApiKey() {
+    const val = document.getElementById('apiKeyInput').value.trim();
+    if (!val) return alert('Cole a chave antes de salvar.');
+    localStorage.setItem('imgbb_key', val);
+    apiKey = val;
+    document.getElementById('apiBox').classList.add('hidden');
+  }
+
+  function resetApiKey() {
+    localStorage.removeItem('imgbb_key');
+    document.getElementById('apiBox').classList.remove('hidden');
+  }
+
+  // Comprime a imagem no celular e sobe automaticamente gerando link .jpg
+  async function handlePhotos(files) {
+    if (!files.length) return;
+    if (!apiKey) {
+      alert('Salve sua chave gratuita do ImgBB no topo da página primeiro para gerar os links automáticos.');
+      return;
+    }
+    const status = document.getElementById('photoStatus');
+    const linksInput = document.getElementById('imageLinks');
+    status.innerText = `⏳ Enviando ${files.length} foto(s)...`;
+
+    let uploadedUrls = linksInput.value ? linksInput.value.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+    for (let file of files) {
+      try {
+        const base64 = await compressImage(file);
+        const formData = new FormData();
+        formData.append('image', base64.split(',')[1]);
+
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+          uploadedUrls.push(data.data.url);
+        } else {
+          alert('Erro ao enviar foto. Verifique sua chave ImgBB.');
+        }
+      } catch (e) {
+        alert('Erro de conexão ao subir a foto.');
+      }
+    }
+
+    linksInput.value = uploadedUrls.join(', ');
+    status.innerText = `✅ ${uploadedUrls.length} foto(s) pronta(s) com link direto!`;
+  }
+
+  function compressImage(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.src = e.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1000;
+          const scale = img.width > MAX_WIDTH ? MAX_WIDTH / img.width : 1;
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.82));
+        };
+      };
+    });
+  }
+
+  // Reconhecimento de voz nativo
+  function startVoice(fieldId, btn) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Use o microfone do próprio teclado do celular (seu navegador não suporta voz direta).');
+      return;
+    }
+    const rec = new SpeechRecognition();
+    rec.lang = 'pt-BR';
+    btn.classList.add('listening');
+    rec.start();
+
+    rec.onresult = (e) => {
+      let text = e.results[0][0].transcript;
+      if (fieldId === 'preco') {
+        text = text.replace(/reais|real/gi, '').replace(',', '.').replace(/[^\d.]/g, '').trim();
+      } else {
+        text = text.charAt(0).toUpperCase() + text.slice(1);
+      }
+      document.getElementById(fieldId).value = text;
+    };
+    rec.onend = () => btn.classList.remove('listening');
+    rec.onerror = () => btn.classList.remove('listening');
+  }
+
+  function slugify(text) {
+    return text.toString().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '');
+  }
+
+  function addProduct() {
+    const nome = document.getElementById('nome').value.trim();
+    let preco = document.getElementById('preco').value.trim().replace(',', '.');
+    const categoria = document.getElementById('categoria').value.trim() || 'Joias';
+    const estoque = document.getElementById('estoque').value || '1';
+    const imagens = document.getElementById('imageLinks').value.trim();
+    let descricao = document.getElementById('descricao').value.trim();
+
+    if (!nome || !preco) {
+      alert('Preencha pelo menos o Nome e o Preço da joia.');
+      return;
+    }
+
+    if (!descricao) {
+      descricao = `${nome} - Categoria: ${categoria}. Peça com acabamento de alta qualidade.`;
+    }
+
+    const idSeq = String(products.length + 1).padStart(3, '0');
+    const sku = `JOIA-${Date.now().toString().slice(-4)}-${idSeq}`;
+    const urlSlug = `${slugify(nome)}-${idSeq}`;
+
+    products.push({
+      imagens,
+      identificador: urlSlug,
+      nome,
+      categoria,
+      preco: Number(preco).toFixed(2),
+      estoque,
+      descricao,
+      sku,
+      exibir: 'SIM',
+      fisico: 'SIM'
+    });
+
+    localStorage.setItem('nuvem_joias', JSON.stringify(products));
+    renderList();
+
+    // Limpa os campos para a próxima joia (mantém a categoria para ganhar tempo)
+    document.getElementById('nome').value = '';
+    document.getElementById('preco').value = '';
+    document.getElementById('descricao').value = '';
+    document.getElementById('imageLinks').value = '';
+    document.getElementById('cameraInput').value = '';
+    document.getElementById('photoStatus').innerText = 'Nenhuma foto adicionada ainda.';
+  }
+
+  function renderList() {
+    document.getElementById('count').innerText = products.length;
+    const ul = document.getElementById('productList');
+    ul.innerHTML = products.map((p, i) => {
+      const firstImg = p.imagens.split(',')[0].trim();
+      const thumb = firstImg ? `<img src="${firstImg}">` : `<div style="width:38px;height:38px;background:#e5e7eb;border-radius:6px;margin-right:8px;display:flex;align-items:center;justify-content:center;">💎</div>`;
+      return `
+        <li>
+          <div class="item-info">
+            ${thumb}
+            <div>
+              <strong>${p.nome}</strong><br>
+              <small>R$ ${p.preco} | Est: ${p.estoque} | ${p.categoria}</small>
+            </div>
+          </div>
+          <button class="del-btn" onclick="removeProduct(${i})">✕</button>
+        </li>
+      `;
+    }).join('');
+  }
+
+  function removeProduct(index) {
+    products.splice(index, 1);
+    localStorage.setItem('nuvem_joias', JSON.stringify(products));
+    renderList();
+  }
+
+  function clearAll() {
+    if (confirm('Tem certeza que deseja limpar a lista do dia?')) {
+      products = [];
+      localStorage.removeItem('nuvem_joias');
+      renderList();
+    }
+  }
+
+  const HEADERS = [
+    'Imagens', 'Identificador URL', 'Nome', 'Categorias',
+    'Preço', 'Estoque', 'Descrição', 'SKU', 'Exibir na loja', 'Produto Físico'
+  ];
+
+  function escapeCSV(val) {
+    const s = String(val ?? '');
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+
+  function downloadCSV() {
+    if (!products.length) return alert('Adicione pelo menos uma joia primeiro.');
+    const rows = [HEADERS.map(escapeCSV).join(',')];
+    products.forEach(p => {
+      rows.push([
+        p.imagens, p.identificador, p.nome, p.categoria,
+        p.preco, p.estoque, p.descricao, p.sku, p.exibir, p.fisico
+      ].map(escapeCSV).join(','));
+    });
+    const blob = new Blob(["\uFEFF" + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `nuvemshop_joias_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+  }
+
+  function copyForSheets() {
+    if (!products.length) return alert('Adicione pelo menos uma joia primeiro.');
+    const rows = products.map(p => [
+      p.imagens, p.identificador, p.nome, p.categoria,
+      p.preco, p.estoque, p.descricao.replace(/\n/g, ' '), p.sku, p.exibir, p.fisico
+    ].join('\t'));
+    navigator.clipboard.writeText(rows.join('\n')).then(() => {
+      alert('Copiado! Agora é só abrir sua Planilha do Google, clicar na célula A2 e dar Ctrl+V (ou Colar).');
+    });
+  }
+</script>
+</body>
+</html>
